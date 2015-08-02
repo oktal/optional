@@ -84,7 +84,6 @@ TEST(optional_test, basic_test)
     Optional<int> opt4 = None();
     ASSERT_TRUE(optionally_map(opt4, func).isEmpty());
     ASSERT_EQ(optionally_map(opt4, func).getOrElse(-1), -1);
-
 }
 
 TEST(optional_test, non_pod)
@@ -110,14 +109,17 @@ TEST(optional_test, non_pod)
     ASSERT_FALSE(opt3.isEmpty());
     Vec expected { 1, 3, 5 };
     ASSERT_EQ(opt3.getOrElse(Vec { }), expected);
+
 }
 
 TEST(optional_test, move_only)
 {
     struct Moveable {
-        Moveable(int) { }
+        Moveable(int val) : val(val) { }
         Moveable(const Moveable &other) = delete;
         Moveable(Moveable &&other) = default;
+
+        int val;
     };
 
     Optional<Moveable> opt1 = None();
@@ -127,6 +129,10 @@ TEST(optional_test, move_only)
 
     Optional<Moveable> opt2 = Some(std::move(m1));
     ASSERT_FALSE(opt2.isEmpty());
+
+    optionally_do(opt2, [](const Moveable& m) {
+        ASSERT_EQ(m.val, 10);
+    });
 
     /* TODO: does not compile yet, figure out a way to move the object
      * whan calling the lambda
@@ -167,6 +173,7 @@ TEST(optional_test, struct_member) {
     };
 
     InnerStruct s;
+    s.value =  Some(10);
     auto dyns = std::make_shared<InnerStruct>();
 
     struct OuterStruct {

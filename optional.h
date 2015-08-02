@@ -135,7 +135,15 @@ public:
         return addr == nullptr;
     }
 
-    T getOrElse(const T &defaultValue) const {
+    T getOrElse(const T &defaultValue) {
+        if (addr != nullptr) {
+            return *constData();
+        }
+
+        return defaultValue;
+    }
+
+    const T& getOrElse(const T &defaultValue) const {
         if (addr != nullptr) {
             return *constData();
         }
@@ -150,7 +158,11 @@ public:
         }
     }
 
-    T get() const {
+    T get() {
+        return *constData();
+    }
+
+    const T& get() const {
         return *constData();
     }
 
@@ -208,8 +220,14 @@ namespace details {
     void do_static_checks(std::false_type) {
         static_assert(types::callable_trait<Func>::Arity == 1, 
             "The function must take exactly 1 argument");
+
         typedef typename types::callable_trait<Func>::template Arg<0>::Type ArgType;
-        static_assert(std::is_same<ArgType, T>::value || std::is_convertible<ArgType, T>::value,
+        typedef typename std::remove_cv<
+                            typename std::remove_reference<ArgType>::type
+                         >::type CleanArgType;
+
+        static_assert(std::is_same<CleanArgType, T>::value
+                   || std::is_convertible<CleanArgType, T>::value,
                       "Function parameter type mismatch");
     }
 
