@@ -155,7 +155,9 @@ public:
     }
 
     ~Optional() {
-        data()->~T();
+        if (!isEmpty()) {
+            data()->~T();
+        }
     }
 
 private:

@@ -3,7 +3,7 @@
 #include "optional.h"
 #include <vector>
 #include <algorithm>
-
+#include <memory>
 
 TEST(optional_test, construct_test)
 {
@@ -31,6 +31,11 @@ TEST(optional_test, construct_test)
     ASSERT_FALSE(opt4.isEmpty());
     ASSERT_EQ(opt4.getOrElse(0), 20);
     ASSERT_EQ(opt2.getOrElse(0), 0);
+
+    int value = 20;
+    Optional<int> opt5 = Some(value);
+    ASSERT_FALSE(opt5.isEmpty());
+    ASSERT_EQ(opt5.getOrElse(0), 20);
 }
 
 TEST(optional_test, basic_test)
@@ -129,6 +134,7 @@ TEST(optional_test, move_only)
 #if 0
     optionally_do(opt2, [](Moveable &&m) { });
 #endif
+
 }
 
 TEST(optional_test, fmap) {
@@ -152,4 +158,21 @@ TEST(optional_test, fmap) {
     auto opt5 = optionally_fmap(opt3, func);
     ASSERT_FALSE(opt5.isEmpty());
     ASSERT_EQ(opt5.getOrElse(0), 40);
+}
+
+TEST(optional_test, struct_member) {
+    struct InnerStruct {
+        Optional<int> value;
+        std::string str;
+    };
+
+    InnerStruct s;
+    auto dyns = std::make_shared<InnerStruct>();
+
+    struct OuterStruct {
+        Optional<InnerStruct> inner;
+    };
+
+    OuterStruct outer;
+    std::unique_ptr<OuterStruct> dyno(new OuterStruct);
 }
