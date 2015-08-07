@@ -87,7 +87,7 @@ template<typename T>
 class Optional {
 public:
     Optional() {
-        addr = nullptr;
+        none_flag = NoneMarker;
     }
 
     Optional(Optional<T> &&other) 
@@ -102,29 +102,29 @@ public:
                       "Types mismatch");
         from_some_helper(std::move(some), types::is_move_constructible<U>());
     }
-    Optional(types::None) { addr = nullptr; } 
+    Optional(types::None) { none_flag = NoneMarker; }
 
     template<typename U>
     Optional<T> &operator=(types::Some<U> some) {
         static_assert(std::is_same<T, U>::value || std::is_convertible<T, U>::value, 
                       "Types mismatch");
-        if (addr != nullptr) {
+        if (none_flag != NoneMarker) {
             data()->~T();
         }
         from_some_helper(std::move(some), types::is_move_constructible<U>());
         return *this;
     }
-    Optional<T> &operator=(types::None) { addr = nullptr; return *this; }
+    Optional<T> &operator=(types::None) { none_flag = NoneMarker; return *this; }
 
     Optional<T> &operator=(Optional<T> &&other) 
       noexcept(types::is_nothrow_move_constructible<T>::value)
     {
         if (other.data()) {
             move_helper(std::move(other), types::is_move_constructible<T>());
-            other.addr = nullptr;
+            other.none_flag = NoneMarker;
         }
         else {
-            addr = nullptr;
+            none_flag = NoneMarker;
         }
 
         return *this;
@@ -132,11 +132,11 @@ public:
 
 
     bool isEmpty() const {
-        return addr == nullptr;
+        return none_flag == NoneMarker;
     }
 
     T getOrElse(const T &defaultValue) {
-        if (addr != nullptr) {
+        if (none_flag != NoneMarker) {
             return *constData();
         }
 
@@ -144,7 +144,7 @@ public:
     }
 
     const T& getOrElse(const T &defaultValue) const {
-        if (addr != nullptr) {
+        if (none_flag != NoneMarker) {
             return *constData();
         }
 
@@ -199,11 +199,23 @@ private:
         ::new (data()) T(some.val_);
     }
 
+    typedef uint8_t none_flag_t;
+    static constexpr none_flag_t NoneMarker = 1;
+
     union {
         uint8_t bytes[sizeof(T)];
-        uint8_t *addr;
+        none_flag_t none_flag;
     };
 };
+
+#define CheckSize(Type) \
+    static_assert(sizeof(Optional<Type>) == sizeof(Type), "Size differs")
+
+CheckSize(uint8_t);
+CheckSize(uint16_t);
+CheckSize(int);
+CheckSize(void *);
+CheckSize(std::string);
 
 namespace details {
     template<typename T>
