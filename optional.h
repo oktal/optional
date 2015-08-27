@@ -90,6 +90,17 @@ public:
         none_flag = NoneMarker;
     }
 
+    // TODO: SFINAE-out if T is not trivially_copyable
+    Optional(const Optional<T>& other)
+    {
+        if (!other.isEmpty()) {
+            ::new (data()) T(*other.data());
+        }
+        else {
+            none_flag = NoneMarker;
+        }
+    }
+
     Optional(Optional<T> &&other) 
       noexcept(types::is_nothrow_move_constructible<T>::value) 
     {
@@ -114,7 +125,32 @@ public:
         from_some_helper(std::move(some), types::is_move_constructible<U>());
         return *this;
     }
-    Optional<T> &operator=(types::None) { none_flag = NoneMarker; return *this; }
+
+    Optional<T> &operator=(types::None) {
+        if (none_flag != NoneMarker) {
+            data()->~T();
+        }
+        none_flag = NoneMarker;
+        return *this;
+    }
+
+    // TODO: SFINAE-out if T is not trivially_copyable
+    Optional<T>& operator=(const Optional<T>& other)
+    {
+        if (!other.isEmpty()) {
+            if (none_flag != NoneMarker) {
+                data()->~T();
+            }
+            ::new (data()) T(*other.data());
+        }
+        else {
+            if (none_flag != NoneMarker) {
+                data()->~T();
+            }
+            none_flag = NoneMarker;
+        }
+    }
+
 
     Optional<T> &operator=(Optional<T> &&other) 
       noexcept(types::is_nothrow_move_constructible<T>::value)

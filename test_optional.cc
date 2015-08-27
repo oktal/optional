@@ -38,6 +38,59 @@ TEST(optional_test, construct_test)
     ASSERT_EQ(opt5.getOrElse(0), 20);
 }
 
+TEST(optional_test, copy_test)
+{
+    Optional<int> opt1 = Some(20);
+
+    Optional<int> opt2(opt1);
+    ASSERT_FALSE(opt1.isEmpty());
+    ASSERT_FALSE(opt2.isEmpty());
+    ASSERT_EQ(opt2.getOrElse(0), 20);
+
+    Optional<int> opt3 = Some(10);
+    opt2 = opt3;
+    ASSERT_FALSE(opt2.isEmpty());
+    ASSERT_FALSE(opt2.isEmpty());
+    ASSERT_EQ(opt2.getOrElse(0), 10);
+
+    Optional<int> opt4 = None();
+    opt1 = opt4;
+    ASSERT_TRUE(opt1.isEmpty());
+    ASSERT_TRUE(opt4.isEmpty());
+
+    struct Call_Exit {
+        Call_Exit(std::function<void (void)> func) : func(func) { }
+        ~Call_Exit() { func(); }
+
+        std::function<void (void)> func;
+    };
+
+    bool destroyed = false;
+    bool destroyed2 = false;
+    Optional<Call_Exit> opt5 = None();
+    Optional<Call_Exit> opt6(opt5);
+
+    /* Make sure that dtors are correctly called */
+    Optional<Call_Exit> opt7 = Some(Call_Exit([&] { destroyed = true; }));
+    Optional<Call_Exit> opt8 = Some(Call_Exit([] { }));
+
+    opt7 = opt8;
+    ASSERT_TRUE(destroyed);
+
+    Optional<Call_Exit> opt9 = Some(Call_Exit([&] { destroyed2 = true; }));
+    opt9 = None();
+    ASSERT_TRUE(opt9.isEmpty());
+    ASSERT_TRUE(destroyed2);
+
+    Optional<std::string> strOpt1 = Some(std::string("Hello"));
+    Optional<std::string> strOpt2(strOpt1);
+
+    ASSERT_EQ(strOpt2.getOrElse(""), "Hello");
+
+    strOpt2 = None();
+    ASSERT_EQ(strOpt2.getOrElse(""), "");
+}
+
 TEST(optional_test, basic_test)
 {
     Optional<int> opt1 = Some(10);
