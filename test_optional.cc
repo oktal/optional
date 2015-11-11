@@ -187,12 +187,9 @@ TEST(optional_test, move_only)
         ASSERT_EQ(m.val, 10);
     });
 
-    /* TODO: does not compile yet, figure out a way to move the object
-     * whan calling the lambda
-     */
-#if 0
-    optionally_do(opt2, [](Moveable &&m) { });
-#endif
+    optionally_do(opt2, [](Moveable &&m) {
+       ASSERT_EQ(m.val, 10);
+    });
 
 }
 

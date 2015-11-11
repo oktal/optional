@@ -202,11 +202,16 @@ public:
         return *constData();
     }
 
+    T& unsafeGet() const {
+        return *data();
+    }
+
     ~Optional() {
         if (!isEmpty()) {
             data()->~T();
         }
     }
+
 
 private:
     T *const constData() const {
@@ -287,8 +292,22 @@ namespace details {
     void static_checks() {
         do_static_checks<T, Func>(std::is_bind_expression<Func>());
     }
-}
 
+    template<typename Func>
+    struct IsArgMovable : public IsArgMovable<decltype(&Func::operator())> { };
+
+    template<typename R, typename Class, typename Arg>
+    struct IsArgMovable<R (Class::*)(Arg) const> : public std::is_rvalue_reference<Arg> { };
+
+    template<typename Func, typename Arg>
+    typename std::conditional<
+        IsArgMovable<Func>::value,
+        Arg&&,
+        const Arg&
+    >::type tryMove(Arg& arg) {
+        return std::move(arg);
+    }
+}
 
 template<typename T, typename Func>
 const Optional<T>&
@@ -297,7 +316,7 @@ optionally_do(const Optional<T> &option, Func func) {
     static_assert(std::is_same<typename types::callable_trait<Func>::ReturnType, void>::value,
                   "Use optionally_map if you want to return a value");
     if (!option.isEmpty()) {
-        func(option.get());
+        func(details::tryMove<Func>(option.unsafeGet()));
     }
 
     return option;
@@ -311,7 +330,7 @@ optionally_map(const Optional<T> &option, Func func)
 {
     details::static_checks<T, Func>();
     if (!option.isEmpty()) {
-        return Some(func(option.get()));
+        return Some(func(details::tryMove<Func>(option.unsafeGet())));
     }
 
     return None();
@@ -324,7 +343,7 @@ optionally_fmap(const Optional<T> &option, Func func)
 {
     details::static_checks<T, Func>();
     if (!option.isEmpty()) {
-        const auto &ret = func(option.get());
+        const auto &ret = func(details::tryMove<Func>(option.unsafeGet()));
         if (!ret.isEmpty()) {
             return Some(ret.get());
         }
