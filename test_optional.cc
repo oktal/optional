@@ -18,7 +18,7 @@ TEST(optional_test, construct_test)
     ASSERT_EQ(opt1.get(), 10);
 
     Optional<int> opt2 = Some(20);
-    ASSERT_FALSE(opt1.isEmpty());
+    ASSERT_FALSE(opt2.isEmpty());
     ASSERT_EQ(opt2.getOrElse(0), 20);
     ASSERT_EQ(opt2.get(), 20);
 

@@ -87,7 +87,7 @@ template<typename T>
 class Optional {
 public:
     Optional() {
-        none_flag = NoneMarker;
+        initialized = false;
     }
 
     // TODO: SFINAE-out if T is not trivially_copyable
@@ -95,9 +95,10 @@ public:
     {
         if (!other.isEmpty()) {
             ::new (data()) T(*other.data());
+            initialized = true;
         }
         else {
-            none_flag = NoneMarker;
+            initialized = false;
         }
     }
 
@@ -113,13 +114,13 @@ public:
                       "Types mismatch");
         from_some_helper(std::move(some), types::is_move_constructible<U>());
     }
-    Optional(types::None) { none_flag = NoneMarker; }
+    Optional(types::None) { initialized = false; }
 
     template<typename U>
     Optional<T> &operator=(types::Some<U> some) {
         static_assert(std::is_same<T, U>::value || std::is_convertible<T, U>::value, 
                       "Types mismatch");
-        if (none_flag != NoneMarker) {
+        if (!isEmpty()) {
             data()->~T();
         }
         from_some_helper(std::move(some), types::is_move_constructible<U>());
@@ -127,10 +128,10 @@ public:
     }
 
     Optional<T> &operator=(types::None) {
-        if (none_flag != NoneMarker) {
+        if (!isEmpty()) {
             data()->~T();
         }
-        none_flag = NoneMarker;
+        initialized = false;
         return *this;
     }
 
@@ -138,16 +139,17 @@ public:
     Optional<T>& operator=(const Optional<T>& other)
     {
         if (!other.isEmpty()) {
-            if (none_flag != NoneMarker) {
+            if (!isEmpty()) {
                 data()->~T();
             }
             ::new (data()) T(*other.data());
+            initialized = true;
         }
         else {
-            if (none_flag != NoneMarker) {
+            if (!isEmpty()) {
                 data()->~T();
             }
-            none_flag = NoneMarker;
+            initialized = false;
         }
     }
 
@@ -157,10 +159,10 @@ public:
     {
         if (other.data()) {
             move_helper(std::move(other), types::is_move_constructible<T>());
-            other.none_flag = NoneMarker;
+            other.initialized = false;
         }
         else {
-            none_flag = NoneMarker;
+            initialized = false;
         }
 
         return *this;
@@ -168,11 +170,11 @@ public:
 
 
     bool isEmpty() const {
-        return none_flag == NoneMarker;
+        return initialized == false;
     }
 
     T getOrElse(const T &defaultValue) {
-        if (none_flag != NoneMarker) {
+        if (!isEmpty()) {
             return *constData();
         }
 
@@ -180,7 +182,7 @@ public:
     }
 
     const T& getOrElse(const T &defaultValue) const {
-        if (none_flag != NoneMarker) {
+        if (!isEmpty()) {
             return *constData();
         }
 
@@ -224,39 +226,29 @@ private:
 
     void move_helper(Optional<T> &&other, std::true_type) {
         ::new (data()) T(std::move(*other.data()));
+        initialized = true;
     }
 
     void move_helper(Optional<T> &&other, std::false_type) {
         ::new (data()) T(*other.data());
+        initialized = true;
     }
 
     template<typename U>
     void from_some_helper(types::Some<U> some, std::true_type) {
         ::new (data()) T(std::move(some.val_));
+        initialized = true;
     }
 
     template<typename U>
     void from_some_helper(types::Some<U> some, std::false_type) {
         ::new (data()) T(some.val_);
+        initialized = true;
     }
 
-    typedef uint8_t none_flag_t;
-    static constexpr none_flag_t NoneMarker = 1;
-
-    union {
-        uint8_t bytes[sizeof(T)];
-        none_flag_t none_flag;
-    };
+    uint8_t bytes[sizeof(T)];
+    bool initialized;
 };
-
-#define CheckSize(Type) \
-    static_assert(sizeof(Optional<Type>) == sizeof(Type), "Size differs")
-
-CheckSize(uint8_t);
-CheckSize(uint16_t);
-CheckSize(int);
-CheckSize(void *);
-CheckSize(std::string);
 
 namespace details {
     template<typename T>
